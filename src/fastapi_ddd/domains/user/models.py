@@ -1,10 +1,12 @@
-from typing import Annotated, Union
+from typing import Annotated
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
+from fastapi_ddd.core.base.base_model import BaseModel
 
 
-class User(SQLModel, table=True):
-    id: Union[int, None] = Field(default=None, primary_key=True)
+class User(BaseModel, table=True):
+    __tablename__ = "users"
+
     username: Annotated[str, Field(unique=True, max_length=30)]
     email: Annotated[str, Field(unique=True, max_length=50)]
     password_hash: Annotated[str, Field(max_length=128)]

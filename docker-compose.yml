@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: fastapi_db
+      POSTGRES_USER: fastapi_user
+      POSTGRES_PASSWORD: fastapi_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - fastapi_ddd_db_data:/var/lib/postgresql
+
+volumes:
+  fastapi_ddd_db_data:

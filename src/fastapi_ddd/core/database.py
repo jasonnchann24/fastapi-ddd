@@ -2,11 +2,14 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
+from dotenv import load_dotenv
+import os
 
-DATABASE_URL = "sqlite:///./fastapi_ddd_test.db"
+load_dotenv()
 
-connect_args = {"check_same_thread": False}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+DATABASE_URL = f"postgresql://{os.getenv('DATABASE_USER')}:{os.getenv('DATABASE_PASSWORD')}@{os.getenv('DATABASE_HOST')}:{os.getenv('DATABASE_PORT')}/{os.getenv('DATABASE_NAME')}"
+
+engine = create_engine(DATABASE_URL)
 
 
 async def create_db_and_tables():
