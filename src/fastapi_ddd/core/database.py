@@ -20,5 +20,8 @@ def get_session():
     with Session(engine) as session:
         yield session
 
+def get_db_url() -> str:
+    return DATABASE_URL
+
 
 SessionDep = Annotated[Session, Depends(get_session)]

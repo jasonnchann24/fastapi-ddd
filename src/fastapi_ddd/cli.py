@@ -4,6 +4,7 @@ import subprocess
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from fastapi_ddd.core import database
 
 # Get project root by going up from this file's location
 # cli.py is at: /src/fastapi_ddd/cli.py
@@ -16,6 +17,10 @@ PROJECT_ROOT = CLI_DIR
 load_dotenv(PROJECT_ROOT / ".env")
 
 cli = typer.Typer()
+
+
+def _get_domain_path(domain: str) -> str:
+    return PROJECT_ROOT / "src" / "fastapi_ddd" / "domains" / domain
 
 
 @cli.command()
@@ -31,12 +36,53 @@ def run():
     subprocess.run(["fastapi", "run", "src/fastapi_ddd/main.py"])
 
 
+def _config_db(domain: str):
+    domain_path = _get_domain_path(domain)
+    db_url = database.get_db_url()
+
+    # open env.py file if db url already set
+    os.open(domain_path / "alembic" / "env.py", os.O_RDWR)
+    # read file and replace db url
+    with open(domain_path / "alembic" / "env.py", "r") as file:
+        content = file.read()
+
+    import_line = (
+        "# AUTOIMPORT db_url\nfrom fastapi_ddd.core.database import get_db_url"
+    )
+
+    if content.find("from fastapi_ddd.core.database import get_db_url") == -1:
+        # Find the last import statement
+        lines = content.splitlines()
+        last_import_index = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith(
+                ("import ", "from ")
+            ) and not line.strip().startswith("# "):
+                last_import_index = i
+
+        # Insert import_line after the last import
+        if last_import_index != -1:
+            lines.insert(last_import_index + 1, import_line)
+            content = "\n".join(lines)
+
+    content = content.replace("url=url,", "url=get_db_url(),")
+    with open(domain_path / "alembic" / "env.py", "w") as file:
+        file.write(content)
+
+
+@cli.command()
+def config_db_url(
+    domain: str = typer.Argument(..., help="Domain name (e.g., user, profile)"),
+):
+    _config_db(domain)
+
+
 @cli.command()
 def migrations_init(
     domain: str = typer.Option(..., help="Domain name (e.g., user, profile)"),
 ):
     """Initialize Alembic for a specific domain."""
-    domain_path = PROJECT_ROOT / "src" / "fastapi_ddd" / "domains" / domain
+    domain_path = _get_domain_path(domain)
     alembic_path = domain_path / "alembic"
 
     print(f"Initializing Alembic for domain: {domain}")
@@ -56,29 +102,7 @@ def migrations_init(
     else:
         print("Custom Alembic template not found; using default.")
 
-    db_url = f"postgresql://{os.getenv('DATABASE_USER')}:{os.getenv('DATABASE_PASSWORD')}@{os.getenv('DATABASE_HOST')}:{os.getenv('DATABASE_PORT')}/{os.getenv('DATABASE_NAME')}"
-
-    # open env.py file if db url already set
-    os.open(domain_path / "alembic" / "env.py", os.O_RDWR)
-    # read file and replace db url
-    with open(domain_path / "alembic" / "env.py", "r") as file:
-        content = file.read()
-    content = content.replace("url=url,", f"url='{db_url}',")
-    with open(domain_path / "alembic" / "env.py", "w") as file:
-        file.write(content)
-
-    # open alembic ini file check and replace db url
-    os.open(domain_path / "alembic.ini", os.O_RDWR)
-    with open(domain_path / "alembic.ini", "r") as file:
-        ini_content = file.read()
-
-    # find sqlalchemy.url line, delete line and replace
-    lines = ini_content.splitlines()
-    with open(domain_path / "alembic.ini", "w") as file:
-        for line in lines:
-            if line.startswith("sqlalchemy.url"):
-                line = f"sqlalchemy.url = {db_url}"
-            file.write(line + "\n")
+    _config_db(domain)
 
     # ====
     # open env.py file, check run_migrations_online() function which calls context.configure function
@@ -122,13 +146,20 @@ def migrations_init(
         if "def run_migrations_online" in line:
             inside_run_migrations = True
 
-        # Detect exiting function (by dedent)
         if (
             inside_run_migrations
             and line.strip().startswith("def ")
             and "run_migrations_online" not in line
         ):
             inside_run_migrations = False
+
+        # If inside run_migrations_online, add logic before connectable
+        if inside_run_migrations:
+            if "connectable = engine_from_config(" in line:
+                # Insert our new line before connectable
+                updated_lines.append(
+                    f"    config.set_main_option('sqlalchemy.url', get_db_url())\n"
+                )
 
         # If inside run_migrations_online, look for context.configure(
         if inside_run_migrations and "context.configure(" in line:
@@ -154,6 +185,8 @@ def migrations_init(
 
         with open(env_path, "w") as f:
             f.writelines(updated_lines)
+    subprocess.run(["ruff", "format", str(domain_path / "alembic" / "env.py")])
+
     # ====
 
 
@@ -162,7 +195,7 @@ def migrations_update(
     domain: str = typer.Option(..., help="Domain name (e.g., user, profile)"),
 ):
     """Create new Alembic migration for a specific domain."""
-    domain_path = PROJECT_ROOT / "src" / "fastapi_ddd" / "domains" / domain
+    domain_path = _get_domain_path(domain)
 
     print(f"Generating migration for domain: {domain}")
 
@@ -237,6 +270,8 @@ def migrations_update(
         env=env,
     )
 
+    subprocess.run(["ruff", "format", str(domain_path / "alembic" / "env.py")])
+
 
 @cli.command()
 def migrations_run(
@@ -250,7 +285,7 @@ def migrations_run(
 
     if domain:
         # Run migration for specific domain
-        domain_path = PROJECT_ROOT / "src" / "fastapi_ddd" / "domains" / domain
+        domain_path = _get_domain_path(domain)
         print(f"Running migrations for domain: {domain}")
 
         subprocess.run(
@@ -264,7 +299,7 @@ def migrations_run(
     else:
         # Run migrations for all domains
         for dom in INSTALLED_DOMAINS:
-            domain_path = PROJECT_ROOT / "src" / "fastapi_ddd" / "domains" / dom
+            domain_path = _get_domain_path(dom)
             print(f"\nRunning migrations for domain: {dom}")
             subprocess.run(
                 [
@@ -274,20 +309,6 @@ def migrations_run(
                 ],
                 cwd=str(domain_path),
             )
-
-
-@cli.command()
-def alembic(
-    arguments: list[str] = typer.Argument(...),
-    domain: str = typer.Option(..., help="Domain name (e.g., user, profile)"),
-):
-    """Run Alembic command for a specific domain."""
-    domain_path = PROJECT_ROOT / "src" / "fastapi_ddd" / "domains" / domain
-
-    print(f"Running Alembic for domain: {domain}")
-    print(f"Command: alembic {' '.join(arguments)}")
-
-    subprocess.run(["alembic"] + arguments, cwd=str(domain_path))
 
 
 @cli.command()

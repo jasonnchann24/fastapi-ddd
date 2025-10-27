@@ -1,1 +1,1 @@
-INSTALLED_DOMAINS: list[str] = ["user"]
+INSTALLED_DOMAINS: list[str] = ["authentication"]

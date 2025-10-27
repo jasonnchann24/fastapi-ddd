@@ -1,8 +1,8 @@
-"""Update user models
+"""Update authentication models
 
-Revision ID: 1f83dc8b2196
+Revision ID: 74007514cd17
 Revises: 
-Create Date: 2025-10-27 01:55:38.142631
+Create Date: 2025-10-28 03:44:32.176048
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1f83dc8b2196'
+revision: str = '74007514cd17'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
