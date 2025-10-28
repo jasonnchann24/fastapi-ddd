@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from fastapi_ddd.core.database import get_session
 from fastapi_ddd.core.base.base_router import create_crud_router
+from fastapi_ddd.core.permissions import AllowAny, IsAdmin, IsAuthenticated
 from .schemas import UserCreateSchema, UserReadSchema, UserUpdateSchema
 from .services import UserService
 from .repositories import UserRepository
@@ -22,13 +23,25 @@ users_router = create_crud_router(
     prefix="/users",
     tags=["authentication users"],
     exclude_routes=["create"],
+    permissions={
+        # "create": [Depends(AllowAny())],  # Anyone can register
+        # "read_list": [Depends(IsAuthenticated())],  # Only logged in users
+        # "read_one": [Depends(IsAuthenticated())],  # Only logged in users
+        # "update": [Depends(IsOwnerOrAdmin())],  # Owner or admin only
+        # "delete": [Depends(CanDeleteUser())],  # Admin only (via permission)
+    },
 )
 
 # Custom router for additional endpoints
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
-@auth_router.post("/register", response_model=UserReadSchema, status_code=201)
+@auth_router.post(
+    "/register",
+    response_model=UserReadSchema,
+    status_code=201,
+    dependencies=[Depends(AllowAny())],
+)
 async def register(
     user_in: UserCreateSchema, session: AsyncSession = Depends(get_session)
 ):
@@ -37,12 +50,24 @@ async def register(
     return await service.create(user_in)
 
 
-@auth_router.post("/login")
+@auth_router.post(
+    "/login",
+    dependencies=[Depends(AllowAny())],
+)
 async def login(
     username: str, password: str, session: AsyncSession = Depends(get_session)
 ):
     """Login user and return access token"""
     # TODO
+    pass
+
+
+@auth_router.get(
+    "/me", response_model=UserReadSchema, dependencies=[Depends(IsAuthenticated())]
+)
+async def get_current_user(
+    request: Request, session: AsyncSession = Depends(get_session)
+):
     pass
 
 

@@ -16,6 +16,7 @@ def create_crud_router(
     prefix: str,
     tags: list[str],
     exclude_routes: list[str] | None = None,
+    permissions: dict[str, list] | None = None,
 ) -> APIRouter:
     """
     Generate a complete CRUD router.
@@ -51,7 +52,12 @@ def create_crud_router(
     # CREATE
     if "create" not in exclude_routes:
 
-        @router.post("/", response_model=read_schema, status_code=201)
+        @router.post(
+            "/",
+            response_model=read_schema,
+            status_code=201,
+            dependencies=permissions.get("create", []),
+        )
         async def create(
             obj_in: create_schema, session: AsyncSession = Depends(get_session)
         ):
@@ -61,7 +67,11 @@ def create_crud_router(
     # READ LIST
     if "read_list" not in exclude_routes:
 
-        @router.get("/", response_model=Page[read_schema])
+        @router.get(
+            "/",
+            response_model=Page[read_schema],
+            dependencies=permissions.get("read_list", []),
+        )
         async def get_list(
             session: AsyncSession = Depends(get_session),
             search: str | None = Query(
@@ -100,7 +110,11 @@ def create_crud_router(
     # READ SINGLE
     if "read_one" not in exclude_routes:
 
-        @router.get("/{id}", response_model=read_schema)
+        @router.get(
+            "/{id}",
+            response_model=read_schema,
+            dependencies=permissions.get("read_one", []),
+        )
         async def get_one(id: int, session: AsyncSession = Depends(get_session)):
             service = service_factory(session)
             return await service.get(id)
@@ -108,7 +122,11 @@ def create_crud_router(
     # UPDATE
     if "update" not in exclude_routes:
 
-        @router.put("/{id}", response_model=read_schema)
+        @router.put(
+            "/{id}",
+            response_model=read_schema,
+            dependencies=permissions.get("update", []),
+        )
         async def update(
             id: int, obj_in: update_schema, session: AsyncSession = Depends(get_session)
         ):
@@ -118,7 +136,11 @@ def create_crud_router(
     # DELETE
     if "delete" not in exclude_routes:
 
-        @router.delete("/{id}", status_code=204)
+        @router.delete(
+            "/{id}",
+            status_code=204,
+            dependencies=permissions.get("delete", []),
+        )
         async def delete(id: int, session: AsyncSession = Depends(get_session)):
             """Delete a record"""
             service = service_factory(session)
