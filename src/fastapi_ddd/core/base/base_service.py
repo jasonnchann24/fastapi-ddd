@@ -25,6 +25,16 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """Override in subclass to set default ordering"""
         return self.repository.model.id.desc()
 
+    def get_searchable_fields(self) -> list[str]:
+        """
+        Override in subclass to define which fields are searchable.
+
+        Example:
+            def get_searchable_fields(self):
+                return ['username', 'email', 'first_name', 'last_name']
+        """
+        return []
+
     async def create(self, obj_in: CreateSchemaType) -> ModelType:
         """Create new record"""
         obj_in = await self.before_create(obj_in) or obj_in
@@ -53,11 +63,29 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             skip=skip, limit=limit, order_by=order_by
         )
 
-    async def get_multi_paginated(self, *, order_by=None) -> Page[ModelType]:
-        """Get paginated records"""
+    async def get_multi_paginated(
+        self, *, order_by=None, search: str | None = None
+    ) -> Page[ModelType]:
+        """
+        Get paginated records with optional search.
+
+        Args:
+            order_by: Column expression for ordering
+            search: Search term to match against searchable fields
+        """
         if order_by is None:
             order_by = self.get_default_order_by()
-        return await self.repository.get_multi_paginated(order_by=order_by)
+
+        # Build search parameters if search provided
+        search_fields = None
+        search_value = None
+        if search and self.get_searchable_fields():
+            search_fields = self.get_searchable_fields()
+            search_value = search
+
+        return await self.repository.get_multi_paginated(
+            order_by=order_by, search_fields=search_fields, search_value=search_value
+        )
 
     async def update(self, id: int, obj_in: UpdateSchemaType) -> ModelType:
         """Update a record, raise 404 if not found"""

@@ -1,6 +1,6 @@
 from typing import Generic, TypeVar, Type, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, or_
 from fastapi_pagination.ext.sqlalchemy import apaginate
 from fastapi_pagination import Page
 
@@ -35,12 +35,61 @@ class BaseRepository(Generic[ModelType]):
         result = await self.session.exec(query)
         return result.all()
 
-    async def get_multi_paginated(self, *, order_by: Any = None) -> Page[ModelType]:
+    async def get_multi_paginated(
+        self,
+        *,
+        order_by: Any = None,
+        filters: dict[str, Any] | None = None,
+        search_fields: list[str] | None = None,
+        search_value: str | None = None,
+    ) -> Page[ModelType]:
         """
-        Get records with automatic pagination.
+        Get records with automatic pagination, filtering, and search.
+
+        Args:
+            order_by: Column expression for ordering
+            filters: Dict of field_name: value for exact match filtering
+            search_fields: List of field names to search in (ILIKE)
+            search_value: Value to search for (uses LIKE/ILIKE across search_fields)
+
         Uses fastapi-pagination for page/size parameters.
+
+        Example:
+            # Exact filtering
+            await repo.get_multi_paginated(filters={'status': 'active'})
+
+            # Search
+            await repo.get_multi_paginated(
+                search_fields=['username', 'email'],
+                search_value='john'
+            )
+
+            # Combined
+            await repo.get_multi_paginated(
+                filters={'status': 'active'},
+                search_fields=['username'],
+                search_value='admin',
+                order_by=User.created_at.desc()
+            )
         """
         query = select(self.model)
+
+        # Apply exact match filters
+        if filters:
+            for field, value in filters.items():
+                if hasattr(self.model, field) and value is not None:
+                    query = query.where(getattr(self.model, field) == value)
+
+        # Apply search (ILIKE across multiple fields)
+        if search_value and search_fields:
+            conditions = []
+            for field in search_fields:
+                if hasattr(self.model, field):
+                    column = getattr(self.model, field)
+                    conditions.append(column.ilike(f"%{search_value}%"))
+
+            if conditions:
+                query = query.where(or_(*conditions))
 
         if order_by is not None:
             query = query.order_by(order_by)

@@ -20,8 +20,31 @@ users_router = create_crud_router(
     read_schema=UserReadSchema,
     update_schema=UserUpdateSchema,
     prefix="/users",
-    tags=["authentication"],
+    tags=["authentication users"],
+    exclude_routes=["create"],
 )
 
+# Custom router for additional endpoints
+auth_router = APIRouter(prefix="/auth", tags=["authentication"])
+
+
+@auth_router.post("/register", response_model=UserReadSchema, status_code=201)
+async def register(
+    user_in: UserCreateSchema, session: AsyncSession = Depends(get_session)
+):
+    """Register a new user (alias for POST /users)"""
+    service = get_user_service(session)
+    return await service.create(user_in)
+
+
+@auth_router.post("/login")
+async def login(
+    username: str, password: str, session: AsyncSession = Depends(get_session)
+):
+    """Login user and return access token"""
+    # TODO
+    pass
+
+
 # Export all routers from this domain
-routers = [users_router]
+routers = [users_router, auth_router]

@@ -21,6 +21,10 @@ class UserService(BaseService[User, UserCreateSchema, UserCreateSchema]):
         """Define default ordering for this service"""
         return User.created_at.desc()
 
+    def get_searchable_fields(self) -> list[str]:
+        """Define which fields can be searched"""
+        return ["username", "email"]
+
     async def before_create(self, user_in: UserCreateSchema):
         # Check uniqueness
         is_unique, error_msg = await self.repository.check_unique(
