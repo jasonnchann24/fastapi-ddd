@@ -1,5 +1,3 @@
-from typing import Annotated
-
 from sqlmodel import Field
 from fastapi_ddd.core.base.base_model import BaseModel, TimestampMixin, SoftDeleteMixin
 

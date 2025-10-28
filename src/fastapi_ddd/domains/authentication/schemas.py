@@ -12,12 +12,22 @@ class UserBaseSchema(BaseModel):
 
 
 class UserCreateSchema(UserBaseSchema):
-    password: str
+    password: str 
 
     @computed_field
     @property
     def password_hash(self) -> str:
         return hash_password(self.password)
+    
+class UserUpdateSchema(UserBaseSchema):
+    password: str | None = Field(default=None)
+
+    @computed_field
+    @property
+    def password_hash(self) -> str | None:
+        if self.password:
+            return hash_password(self.password)
+        return None
 
 
 class UserReadSchema(UserBaseSchema):
