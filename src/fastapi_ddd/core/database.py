@@ -26,8 +26,12 @@ async def create_db_and_tables() -> None:
 # --- Session dependency ---
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Provide a new SQLModel AsyncSession for each request."""
-    async with AsyncSession(engine) as session:
-        yield session
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
 
 
 # --- Synchronous helper ---

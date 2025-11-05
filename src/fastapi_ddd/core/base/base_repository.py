@@ -97,15 +97,21 @@ class BaseRepository(Generic[ModelType]):
         return await apaginate(self.session, query)
 
     async def create(self, obj_in: dict[str, Any]) -> ModelType:
-        """Create new record"""
+        """
+        Create a new record.
+
+        NOTE: Does NOT commit. Caller must:
+        - Call session.commit() for simple operations
+        - Use transaction() wrapper for complex operations
+        """
         db_obj = self.model(**obj_in)
         self.session.add(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(db_obj)
         return db_obj
 
     async def update(self, id: int, obj_in: dict[str, Any]) -> ModelType | None:
-        """Update record"""
+        """Update record. Does not commit"""
         db_obj = await self.get(id)
         if not db_obj:
             return None
@@ -116,22 +122,22 @@ class BaseRepository(Generic[ModelType]):
                 setattr(db_obj, field, value)
 
         self.session.add(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         await self.session.refresh(db_obj)
         return db_obj
 
     async def force_delete(self, id: int) -> bool:
-        """Delete permanently record"""
+        """Delete permanently record. Does not commit"""
         db_obj = await self.get(id)
         if not db_obj:
             return False
 
         await self.session.delete(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         return True
 
     async def soft_delete(self, id: int) -> bool:
-        """Soft delete a record"""
+        """Soft delete a record. Does not commit"""
         db_obj = await self.get(id)
         if not db_obj:
             return False
@@ -140,7 +146,7 @@ class BaseRepository(Generic[ModelType]):
 
         db_obj.deleted_at = datetime.now()
         self.session.add(db_obj)
-        await self.session.commit()
+        await self.session.flush()
         return True
 
     async def exists(self, **filters) -> bool:

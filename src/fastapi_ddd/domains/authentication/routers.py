@@ -47,7 +47,9 @@ async def register(
 ):
     """Register a new user (alias for POST /users)"""
     service = get_user_service(session)
-    return await service.create(user_in)
+    result = await service.create(user_in)
+    await session.commit()
+    return result
 
 
 @auth_router.post(

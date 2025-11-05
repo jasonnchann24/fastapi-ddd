@@ -62,7 +62,9 @@ def create_crud_router(
             obj_in: create_schema, session: AsyncSession = Depends(get_session)
         ):
             service = service_factory(session)
-            return await service.create(obj_in)
+            result = await service.create(obj_in)
+            await session.commit()
+            return result
 
     # READ LIST
     if "read_list" not in exclude_routes:
@@ -131,7 +133,9 @@ def create_crud_router(
             id: int, obj_in: update_schema, session: AsyncSession = Depends(get_session)
         ):
             service = service_factory(session)
-            return await service.update(id, obj_in)
+            result = await service.update(id, obj_in)
+            await session.commit()
+            return result
 
     # DELETE
     if "delete" not in exclude_routes:
@@ -145,5 +149,6 @@ def create_crud_router(
             """Delete a record"""
             service = service_factory(session)
             await service.delete(id)
+            await session.commit()
 
     return router
