@@ -2,9 +2,12 @@
 import typer
 import subprocess
 import os
+import secrets
+import base64
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi_ddd.core import database
+from rich.console import Console
 
 # Get project root by going up from this file's location
 # cli.py is at: /src/fastapi_ddd/cli.py
@@ -17,6 +20,8 @@ PROJECT_ROOT = CLI_DIR
 load_dotenv(PROJECT_ROOT / ".env")
 
 cli = typer.Typer()
+
+console = Console()
 
 
 def _get_domain_path(domain: str) -> str:
@@ -281,7 +286,7 @@ def migrations_run(
     ),
 ):
     """Run migrations for a specific domain or all domains."""
-    from fastapi_ddd.core.config import INSTALLED_DOMAINS
+    from fastapi_ddd.core.config import settings
 
     if domain:
         # Run migration for specific domain
@@ -298,7 +303,7 @@ def migrations_run(
         )
     else:
         # Run migrations for all domains
-        for dom in INSTALLED_DOMAINS:
+        for dom in settings.installed_domains:
             domain_path = _get_domain_path(dom)
             print(f"\nRunning migrations for domain: {dom}")
             subprocess.run(
@@ -309,6 +314,14 @@ def migrations_run(
                 ],
                 cwd=str(domain_path),
             )
+
+
+@cli.command()
+def auth_jwt_secret():
+    """Generate 256-bit JWT Secret for H256 signing"""
+    secret_bytes = secrets.token_bytes(32)
+    secret = base64.urlsafe_b64encode(secret_bytes).decode("utf-8")
+    typer.echo(f"🔑 JWT HS256 Secret: (put this in your .env)\n{secret}")
 
 
 @cli.command()

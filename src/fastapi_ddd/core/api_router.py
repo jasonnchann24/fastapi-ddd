@@ -1,10 +1,10 @@
 from fastapi import APIRouter
-from fastapi_ddd.core.config import INSTALLED_DOMAINS
+from fastapi_ddd.core.config import settings
 from importlib import import_module
 
 api_router = APIRouter(prefix="/api")
 
-for domain in INSTALLED_DOMAINS:
+for domain in settings.installed_domains:
     module_path = f"fastapi_ddd.domains.{domain}.routers"
     module = import_module(module_path)
 

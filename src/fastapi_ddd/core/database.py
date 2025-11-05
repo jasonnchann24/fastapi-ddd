@@ -3,16 +3,13 @@ from fastapi import Depends
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
-from dotenv import load_dotenv
-import os
 
-# Load environment variables
-load_dotenv()
+from fastapi_ddd.core.config import settings
 
-# Use asyncpg driver for async PostgreSQL connection
+
 DATABASE_URL = (
-    f"postgresql+asyncpg://{os.getenv('DATABASE_USER')}:{os.getenv('DATABASE_PASSWORD')}@"
-    f"{os.getenv('DATABASE_HOST')}:{os.getenv('DATABASE_PORT')}/{os.getenv('DATABASE_NAME')}"
+    f"postgresql+asyncpg://{settings.database_user}:{settings.database_password}@"
+    f"{settings.database_host}:{settings.database_port}/{settings.database_name}"
 )
 
 # Create async engine
@@ -33,8 +30,9 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# --- Optional helper ---
+# --- Synchronous helper ---
 def get_db_url() -> str:
+    """Return synchronous DB URL (for Alembic migrations)."""
     return DATABASE_URL.replace("+asyncpg", "")
 
 
