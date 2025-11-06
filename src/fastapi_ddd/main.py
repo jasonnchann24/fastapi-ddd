@@ -6,6 +6,7 @@ from fastapi_ddd.core.api_router import api_router
 from fastapi_ddd.core.database import engine
 from fastapi_pagination import add_pagination
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -17,9 +18,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-add_pagination(app)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "http://localhost:3000",  # React
+#         "http://localhost:5173",  # Vite
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+add_pagination(app)
 
 # Include API router with all domain routers
 app.include_router(api_router)

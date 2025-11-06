@@ -1,3 +1,11 @@
+from datetime import timedelta
+from fastapi_ddd.core.security import (
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
+from fastapi_ddd.core.config import settings
 from fastapi import HTTPException, status
 
 from fastapi_ddd.core.base.base_service import BaseService
@@ -51,3 +59,66 @@ class UserService(BaseService[User, UserCreateSchema, UserCreateSchema]):
             return UserBaseSchema(**user_in.model_dump())
 
         return user_in
+
+    async def authenticate_user(self, username: str, password: str) -> User | None:
+        """
+        Authenticate user by username/email and password
+        """
+
+        user = await self.repository.get_by_username_or_email(username)
+
+        if not user:
+            return None
+
+        if user.deleted_at is not None:
+            return None
+
+        if not verify_password(password, user.password_hash):
+            return None
+
+        return user
+
+    async def create_tokens_for_user(self, user: User) -> tuple[str, str]:
+        """
+        Generate access and refresh token pair for user
+        Returns (access_token, refresh_token)
+        """
+
+        access_token_data = {"sub": str(user.id), "username": user.username}
+        access_token_exp = timedelta(minutes=settings.jwt_access_token_expire_minutes)
+        access_token = create_access_token(
+            data=access_token_data, expires_delta=access_token_exp
+        )
+
+        refresh_token_data = {"sub": str(user.id)}
+        refresh_token_exp = timedelta(days=settings.jwt_refresh_token_expire_days)
+        refresh_token = create_refresh_token(
+            data=refresh_token_data, expires_delta=refresh_token_exp
+        )
+
+        return access_token, refresh_token
+
+    async def refresh_user_tokens(self, refresh_token: str) -> tuple[str, str]:
+        """
+        Validate refresh token and generate new token pair
+        Returns new (access_token, refresh_token)
+        """
+
+        payload = decode_refresh_token(refresh_token)
+
+        user_id = int(payload.get("sub"))
+
+        user = await self.repository.get(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+            )
+
+        if user.deleted_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or invalid",
+            )
+
+        return await self.create_tokens_for_user(user)

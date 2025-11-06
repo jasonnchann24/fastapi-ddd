@@ -41,3 +41,12 @@ class UserRepository(BaseRepository[User]):
                 return False, "Email exists"
 
         return True, None
+
+    async def get_by_username_or_email(self, identifier: str) -> User | None:
+        """Find user by username or email"""
+        q = select(User).where(
+            or_(User.username == identifier, User.email == identifier)
+        )
+
+        result = await self.session.exec(q)
+        return result.one_or_none()

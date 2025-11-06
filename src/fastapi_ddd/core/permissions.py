@@ -50,29 +50,47 @@ class AllowAny(PermissionDependency):
 
 
 class IsAuthenticated(PermissionDependency):
-    """Protected authenticated"""
-
-    def __init__(self):
-        super().__init__("Authentication required")
+    """Requires authenticated user"""
 
     async def has_permission(
         self, request: Request, session: AsyncSession, **kwargs
     ) -> bool:
-        # TODO
-        # return hasattr(request.state, "user") and request.state.user is not None
-        return True
+        from fastapi_ddd.domains.authentication.dependencies import get_current_user
+
+        try:
+            # Extract token
+            authorization = request.headers.get("Authorization")
+            if not authorization or not authorization.startswith("Bearer "):
+                return False
+
+            token = authorization.split(" ")[1]
+
+            # Validate and get user
+            user = await get_current_user(token=token, session=session)
+            request.state.user = user
+            return True
+        except Exception:
+            return False
 
 
 class IsAdmin(PermissionDependency):
+    """Requires authenticated admin user"""
+
     def __init__(self):
-        super().__init__("Admin access only")
+        super().__init__("Admin privileges required")
 
     async def has_permission(
         self, request: Request, session: AsyncSession, **kwargs
     ) -> bool:
-        # TODO
-        # return hasattr(request.state, "user") and request.state.user.role == "admin"
-        return False
+        # First check if authenticated
+        is_auth = IsAuthenticated()
+        await is_auth(request, session)
+
+        # Then check if user is admin
+        user = request.state.user
+        # TODO: Add is_admin field to User model
+        # return user.is_admin
+        return True  # Placeholder
 
 
 # Helper class to combine multiple permissions (AND)

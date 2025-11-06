@@ -4,21 +4,35 @@ from datetime import datetime
 from pydantic import computed_field, Field, EmailStr
 
 
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int  # seconds
+
+
+class TokenData(BaseModel):
+    """Internal model for decoded token data"""
+
+    user_id: int
+    username: str | None = None
+
+
 class UserBaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     username: str = Field(max_length=30)
     email: EmailStr = Field(max_length=50)
 
 
 class UserCreateSchema(UserBaseSchema):
-    password: str 
+    password: str
 
     @computed_field
     @property
     def password_hash(self) -> str:
         return hash_password(self.password)
-    
+
+
 class UserUpdateSchema(UserBaseSchema):
     password: str | None = Field(default=None)
 

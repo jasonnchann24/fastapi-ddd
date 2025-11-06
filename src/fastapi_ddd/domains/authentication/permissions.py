@@ -1,4 +1,4 @@
-from fastapi import Request
+from fastapi import Request, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from fastapi_ddd.core.permissions import PermissionDependency
@@ -6,18 +6,23 @@ from .repositories import UserRepository
 
 
 class IsOwner(PermissionDependency):
-    def __init__(self):
+    """Check if current user owns the resource"""
+
+    def __init__(self, owner_field: str = "user_id"):
         super().__init__("You can only access your own resources")
+        self.owner_field = owner_field
 
     async def has_permission(self, request: Request, session: AsyncSession, **kwargs):
-        path_params = request.path_params
-        resource_user_id = path_params.get("id")
-
-        if not resource_user_id:
+        # Get current user from request state
+        current_user = getattr(request.state, "user", None)
+        if not current_user:
             return False
 
-        # Todo
-        # current user id = request.state.user.id
-        # return current user id == resource user id
+        # Get resource from kwargs
+        resource = kwargs.get("resource")
+        if not resource:
+            return False
 
-        return True
+        # Check ownership
+        owner_id = getattr(resource, self.owner_field, None)
+        return owner_id == current_user.id
