@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -27,7 +28,7 @@ async def _get_user_from_token(
         )
 
     try:
-        user_id = int(user_id_str)
+        user_id = UUID(user_id_str)
     except (ValueError, TypeError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -1,11 +1,10 @@
 from pathlib import Path
-from typing import List
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from fastapi_ddd.core.logging import log_info
 
 # --- Custom configurations here ---
-INSTALLED_DOMAINS = ["authentication"]
+INSTALLED_DOMAINS = ["authentication", "authorization"]
 
 # --- ---- ---- ---- ---- ---- --- ---
 
@@ -22,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # --- Installed domains ---
-    installed_domains: List[str] = Field(default_factory=lambda: INSTALLED_DOMAINS)
+    installed_domains: list[str] = Field(default_factory=lambda: INSTALLED_DOMAINS)
 
     # --- JWT ---
     jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")

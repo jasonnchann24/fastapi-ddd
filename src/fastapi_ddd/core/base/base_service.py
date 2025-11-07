@@ -2,6 +2,7 @@ from typing import Generic, TypeVar, Optional
 from pydantic import BaseModel
 from fastapi import HTTPException, status
 from fastapi_pagination import Page
+from uuid import UUID
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -43,7 +44,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await self.after_create(obj)
         return obj
 
-    async def get(self, id: int) -> ModelType:
+    async def get(self, id: UUID) -> ModelType:
         """Get a record by ID, raise 404 if not found"""
         db_obj = await self.repository.get(id)
         if not db_obj:
@@ -87,7 +88,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             order_by=order_by, search_fields=search_fields, search_value=search_value
         )
 
-    async def update(self, id: int, obj_in: UpdateSchemaType) -> ModelType:
+    async def update(self, id: UUID, obj_in: UpdateSchemaType) -> ModelType:
         """Update a record, raise 404 if not found"""
         obj_in = await self.before_update(id, obj_in) or obj_in
 
@@ -98,7 +99,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await self.after_update(db_obj)
         return db_obj
 
-    async def force_delete(self, id: int) -> bool:
+    async def force_delete(self, id: UUID) -> bool:
         """Force delete a record"""
         await self.before_delete(id)
         success = await self.repository.force_delete(id)
@@ -110,7 +111,7 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             )
         return True
 
-    async def delete(self, id: int) -> bool:
+    async def delete(self, id: UUID) -> bool:
         """Soft delete a record"""
         await self.before_delete(id)
 
@@ -136,15 +137,15 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         pass
 
     async def before_update(
-        self, obj_id: int, obj_in: UpdateSchemaType
+        self, obj_id: UUID, obj_in: UpdateSchemaType
     ) -> Optional[UpdateSchemaType]:
         return obj_in
 
     async def after_update(self, obj: ModelType) -> None:
         pass
 
-    async def before_delete(self, obj_id: int) -> None:
+    async def before_delete(self, obj_id: UUID) -> None:
         pass
 
-    async def after_delete(self, obj_id: int) -> None:
+    async def after_delete(self, obj_id: UUID) -> None:
         pass

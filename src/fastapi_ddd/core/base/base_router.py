@@ -1,4 +1,5 @@
 from typing import Type
+from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -117,7 +118,7 @@ def create_crud_router(
             response_model=read_schema,
             dependencies=permissions.get("read_one", []),
         )
-        async def get_one(id: int, session: AsyncSession = Depends(get_session)):
+        async def get_one(id: UUID, session: AsyncSession = Depends(get_session)):
             service = service_factory(session)
             return await service.get(id)
 
@@ -130,7 +131,9 @@ def create_crud_router(
             dependencies=permissions.get("update", []),
         )
         async def update(
-            id: int, obj_in: update_schema, session: AsyncSession = Depends(get_session)
+            id: UUID,
+            obj_in: update_schema,
+            session: AsyncSession = Depends(get_session),
         ):
             service = service_factory(session)
             result = await service.update(id, obj_in)
@@ -145,7 +148,7 @@ def create_crud_router(
             status_code=204,
             dependencies=permissions.get("delete", []),
         )
-        async def delete(id: int, session: AsyncSession = Depends(get_session)):
+        async def delete(id: UUID, session: AsyncSession = Depends(get_session)):
             """Delete a record"""
             service = service_factory(session)
             await service.delete(id)

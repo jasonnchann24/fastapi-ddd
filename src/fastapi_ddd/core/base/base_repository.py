@@ -3,6 +3,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, or_
 from fastapi_pagination.ext.sqlalchemy import apaginate
 from fastapi_pagination import Page
+from uuid import UUID
 
 ModelType = TypeVar("ModelType")
 
@@ -19,7 +20,7 @@ class BaseRepository(Generic[ModelType]):
         self.session = session
         self.model = model
 
-    async def get(self, id: int) -> ModelType | None:
+    async def get(self, id: UUID) -> ModelType | None:
         """Get single record by ID"""
         return await self.session.get(self.model, id)
 
@@ -110,7 +111,7 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(db_obj)
         return db_obj
 
-    async def update(self, id: int, obj_in: dict[str, Any]) -> ModelType | None:
+    async def update(self, id: UUID, obj_in: dict[str, Any]) -> ModelType | None:
         """Update record. Does not commit"""
         db_obj = await self.get(id)
         if not db_obj:
@@ -126,7 +127,7 @@ class BaseRepository(Generic[ModelType]):
         await self.session.refresh(db_obj)
         return db_obj
 
-    async def force_delete(self, id: int) -> bool:
+    async def force_delete(self, id: UUID) -> bool:
         """Delete permanently record. Does not commit"""
         db_obj = await self.get(id)
         if not db_obj:
@@ -136,7 +137,7 @@ class BaseRepository(Generic[ModelType]):
         await self.session.flush()
         return True
 
-    async def soft_delete(self, id: int) -> bool:
+    async def soft_delete(self, id: UUID) -> bool:
         """Soft delete a record. Does not commit"""
         db_obj = await self.get(id)
         if not db_obj:
@@ -150,10 +151,53 @@ class BaseRepository(Generic[ModelType]):
         return True
 
     async def exists(self, **filters) -> bool:
-        """Check if record exists with given filters"""
+        """
+        Check if record exists with given filters.
+
+        Usage:
+            await repo.exists(username="john")
+            await repo.exists(email="test@example.com")
+        """
         query = select(self.model)
         for field, value in filters.items():
-            query = query.where(getattr(self.model, field) == value)
+            if hasattr(self.model, field):
+                query = query.where(getattr(self.model, field) == value)
+
+        result = await self.session.exec(query)
+        return result.first() is not None
+
+    async def get_by(self, **filters) -> ModelType | None:
+        """
+        Get single record by filters.
+
+        Usage:
+            await repo.get_by(username="john")
+            await repo.get_by(resource="users", action="create")
+        """
+        query = select(self.model)
+        for field, value in filters.items():
+            if hasattr(self.model, field):
+                query = query.where(getattr(self.model, field) == value)
+
+        result = await self.session.exec(query)
+        return result.first()
+
+    async def exists_excluding(self, exclude_id: Any, **filters) -> bool:
+        """
+        Check if record exists with given filters, excluding a specific ID.
+        Useful for uniqueness validation during updates.
+
+        Usage:
+            # Check if username exists for other users
+            await repo.exists_excluding(user_id, username="john")
+
+            # Check if role name exists for other roles
+            await repo.exists_excluding(role_id, name="admin")
+        """
+        query = select(self.model).where(self.model.id != exclude_id)
+        for field, value in filters.items():
+            if hasattr(self.model, field):
+                query = query.where(getattr(self.model, field) == value)
 
         result = await self.session.exec(query)
         return result.first() is not None

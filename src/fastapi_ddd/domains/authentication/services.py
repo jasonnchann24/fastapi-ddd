@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import UUID
 from fastapi_ddd.core.security import (
     verify_password,
     create_access_token,
@@ -106,7 +107,7 @@ class UserService(BaseService[User, UserCreateSchema, UserCreateSchema]):
 
         payload = decode_refresh_token(refresh_token)
 
-        user_id = int(payload.get("sub"))
+        user_id = UUID(payload.get("sub"))
 
         user = await self.repository.get(user_id)
 
