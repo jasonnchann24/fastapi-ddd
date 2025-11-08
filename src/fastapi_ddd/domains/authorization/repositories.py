@@ -48,7 +48,7 @@ class UserRoleRepository(BaseRepository[UserRole]):
         super().__init__(session, UserRole)
 
     async def get_by_user(self, user_id: UUID) -> list[UserRole]:
-        q = select(UserRole).where(UserRole.user.id == user_id)
+        q = select(UserRole).where(UserRole.user_id == user_id)
         result = await self.session.exec(q)
         return list(result.all())
 

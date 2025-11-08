@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Request, status, Response, Cookie, HTTPE
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from fastapi_ddd.core.containers import resolve_with_session
 from fastapi_ddd.core.database import get_session
 from fastapi_ddd.core.config import settings
 from fastapi_ddd.core.base.base_router import create_crud_router
@@ -14,14 +15,9 @@ from .models import User
 from .dependencies import get_current_user
 
 
-def get_user_service(session: AsyncSession) -> UserService:
-    repo = UserRepository(session=session)
-    return UserService(repository=repo)
-
-
 # CRUD router for users
 users_router = create_crud_router(
-    service_factory=get_user_service,
+    service_class=UserService,
     create_schema=UserCreateSchema,
     read_schema=UserReadSchema,
     update_schema=UserUpdateSchema,
@@ -51,7 +47,7 @@ async def register(
     user_in: UserCreateSchema, session: AsyncSession = Depends(get_session)
 ):
     """Register a new user (alias for POST /users)"""
-    service = get_user_service(session)
+    service = resolve_with_session(UserService, session)
     result = await service.create(user_in)
     await session.commit()
     return result
@@ -71,7 +67,7 @@ async def login(
     Login with username /email and password
     Returns access token and sets refresh token in HTTP-only cookie
     """
-    service = get_user_service(session=session)
+    service = resolve_with_session(UserService, session)
 
     user = await service.authenticate_user(form_data.username, form_data.password)
 
@@ -119,7 +115,7 @@ async def refresh(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token invalid"
         )
 
-    service = get_user_service(session=session)
+    service = resolve_with_session(UserService, session)
 
     try:
         new_token, new_refresh = await service.refresh_user_tokens(

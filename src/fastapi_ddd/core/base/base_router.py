@@ -1,16 +1,19 @@
-from typing import Type
+from typing import Type, TypeVar
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi_pagination import Page
+from fastapi_ddd.core.containers import resolve_with_session
 
 from fastapi_ddd.core.database import get_session
+
+TService = TypeVar("TService")
 
 
 def create_crud_router(
     *,
-    service_factory,
+    service_class: Type[TService],
     create_schema: Type[BaseModel],
     read_schema: Type[BaseModel],
     update_schema: Type[BaseModel],
@@ -23,7 +26,7 @@ def create_crud_router(
     Generate a complete CRUD router.
 
     Args:
-        service_factory: Callable that takes session and returns service
+        service_class: Callable that takes session and returns service
         create_schema: Pydantic schema for POST
         read_schema: Pydantic schema for responses
         update_schema: Pydantic schema for PUT
@@ -36,7 +39,7 @@ def create_crud_router(
 
     Usage:
         router = create_crud_router(
-            service_factory=get_user_service,
+            service_class=get_user_service,
             create_schema=UserCreateSchema,
             read_schema=UserReadSchema,
             update_schema=UserUpdateSchema,
@@ -62,7 +65,7 @@ def create_crud_router(
         async def create(
             obj_in: create_schema, session: AsyncSession = Depends(get_session)
         ):
-            service = service_factory(session)
+            service: TService = resolve_with_session(service_class, session)
             result = await service.create(obj_in)
             await session.commit()
             return result
@@ -98,7 +101,7 @@ def create_crud_router(
             - Dynamic ordering via query parameters
             - Pagination (page, size)
             """
-            service = service_factory(session)
+            service: TService = resolve_with_session(service_class, session)
 
             # Build order_by expression if provided
             order_expr = None
@@ -119,7 +122,7 @@ def create_crud_router(
             dependencies=permissions.get("read_one", []),
         )
         async def get_one(id: UUID, session: AsyncSession = Depends(get_session)):
-            service = service_factory(session)
+            service: TService = resolve_with_session(service_class, session)
             return await service.get(id)
 
     # UPDATE
@@ -135,7 +138,7 @@ def create_crud_router(
             obj_in: update_schema,
             session: AsyncSession = Depends(get_session),
         ):
-            service = service_factory(session)
+            service: TService = resolve_with_session(service_class, session)
             result = await service.update(id, obj_in)
             await session.commit()
             return result
@@ -150,7 +153,7 @@ def create_crud_router(
         )
         async def delete(id: UUID, session: AsyncSession = Depends(get_session)):
             """Delete a record"""
-            service = service_factory(session)
+            service: TService = resolve_with_session(service_class, session)
             await service.delete(id)
             await session.commit()
 

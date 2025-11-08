@@ -7,6 +7,14 @@ from fastapi_ddd.core.database import engine
 from fastapi_pagination import add_pagination
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_ddd.core.events.event_bus import SimpleEventBus
+from fastapi_ddd.core.events.bootstrap import register_domain_event_handlers
+from fastapi_ddd.core.containers import register_event_bus
+
+# Initialize EventBus and register it in DI container BEFORE domain imports
+event_bus = SimpleEventBus()
+register_event_bus(event_bus)
+register_domain_event_handlers(event_bus)
 
 
 @asynccontextmanager
@@ -34,6 +42,9 @@ add_pagination(app)
 
 # Include API router with all domain routers
 app.include_router(api_router)
+
+# Store event bus in app state for potential direct access
+app.state.event_bus = event_bus
 
 
 @app.get("/")

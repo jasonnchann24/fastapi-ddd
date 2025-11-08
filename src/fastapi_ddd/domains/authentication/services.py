@@ -10,10 +10,11 @@ from fastapi_ddd.core.config import settings
 from fastapi import HTTPException, status
 
 from fastapi_ddd.core.base.base_service import BaseService
-from fastapi_ddd.core.security import hash_password
+from fastapi_ddd.core.events.event_bus import EventBus
 from .models import User
 from .schemas import UserCreateSchema, UserUpdateSchema, UserBaseSchema
 from .repositories import UserRepository
+from .events import UserSavedEvent
 
 
 class UserService(BaseService[User, UserCreateSchema, UserCreateSchema]):
@@ -22,9 +23,10 @@ class UserService(BaseService[User, UserCreateSchema, UserCreateSchema]):
     Handles validation, hashing and uniqueness.
     """
 
-    def __init__(self, repository: UserRepository):
+    def __init__(self, repository: UserRepository, event_bus: EventBus):
         super().__init__(repository)
         self.repository: UserRepository = repository
+        self.event_bus = event_bus
 
     def get_default_order_by(self):
         """Define default ordering for this service"""
@@ -43,6 +45,22 @@ class UserService(BaseService[User, UserCreateSchema, UserCreateSchema]):
             raise HTTPException(status_code=409, detail=error_msg)
 
         return user_in
+
+    async def after_create(self, user: User) -> None:
+        evt = UserSavedEvent(
+            user_id=str(user.id), username=user.username, email=user.email
+        )
+        await self.event_bus.publish(
+            evt.to_integration(), session=self.repository.session
+        )
+
+    async def after_update(self, user: User) -> None:
+        evt = UserSavedEvent(
+            user_id=str(user.id), username=user.username, email=user.email
+        )
+        await self.event_bus.publish(
+            evt.to_integration(), session=self.repository.session
+        )
 
     async def before_update(self, user_id: int, user_in: UserUpdateSchema):
         await self.get(user_id)

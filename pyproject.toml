@@ -11,6 +11,7 @@ dependencies = [
     "fastapi[standard]>=0.120.0",
     "loguru>=0.7.3",
     "psycopg2-binary>=2.9.11",
+    "punq>=0.7.0",
     "pwdlib[argon2]>=0.3.0",
     "pydantic-settings>=2.11.0",
     "pyjwt>=2.10.1",

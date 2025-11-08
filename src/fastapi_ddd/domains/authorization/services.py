@@ -201,7 +201,7 @@ class RoleService(BaseService[Role, RoleCreateSchema, RoleUpdateSchema]):
             )
 
         if to_add:
-            await self.user_role_repository.bulk_create(user_id, list(to_add))
+            await self.user_role_repository.bulk_create_for_user(user_id, list(to_add))
 
         all_assignments = await self.user_role_repository.get_by_user(user_id)
         return [UserRoleReadSchema.model_validate(ur) for ur in all_assignments]
